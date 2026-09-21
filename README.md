@@ -148,7 +148,20 @@ detection phases below exist to feed it.
       `timing_correlation`'s z-score can legitimately be +inf.
       39/39 tests passing; full mixed-dataset run produces 40 scored
       identities and 2 scored hosts, correctly sorted.
-- [ ] **Phase 8 - CLI + Flask dashboard** (matches rest of portfolio)
+- [x] **Phase 8 - CLI + Flask dashboard** (matches rest of portfolio).
+      `cli.py`: `load-scenarios`, `score`, `push-splunk`, `serve`
+      (port 5220, registered in the root `.claude/launch.json`).
+      `web/app.py` + `web/serialize.py` + `web/templates/index.html`:
+      dark-theme dashboard (matching iam-drift-sentinel's style) with
+      stat cards, identity/host risk boards, and a click-through
+      evidence detail panel. **Bug found and fixed**: `SplunkClient`
+      used `dataclasses.asdict()` directly, which raises on the
+      `sqlite3.Row` objects `Store` returns - `push-splunk` would have
+      crashed on first real use; fixed with a dataclass-or-Row-aware
+      `_to_dict()`. Verified live in-browser: all `/api/*` endpoints
+      return 200, both risk boards render with correct scores/badges,
+      clicking a row opens the right evidence detail, no console
+      errors. 42/42 tests passing.
 - [ ] **Phase 9 - Live verification** against the real Splunk instance
 - [ ] **Phase 10 - README/DEMO finalization**
 
