@@ -99,7 +99,17 @@ detection phases below exist to feed it.
       and the synthetic generator share one definition. 18/18 tests
       passing; detected exactly the 5 injected mismatches in the full
       mixed dataset with zero false positives.
-- [ ] **Phase 4 - Evasion-aware concurrency detector** (signal 3)
+- [x] **Phase 4 - Evasion-aware network fingerprinting** (signal 3).
+      `detection/evasion_fingerprint.py` - flags logins whose measured
+      RTT is far beyond the physical floor for the claimed geolocation
+      distance (ratio >= 5x), catching residential-proxy relays that
+      spoof geolocation to defeat geoIP-only impossible-travel checks.
+      TTL/hop-count is a weak corroborating signal only, boosting risk
+      score rather than gating detection alone. Threshold chosen with
+      margin above the synthetic normal population's natural ceiling
+      (max ratio 3.0). 23/23 tests passing; detected exactly the 5
+      injected proxy cases in the full mixed dataset with zero false
+      positives.
 - [ ] **Phase 5 - Session-token fork detection** (signal 4, networkx lineage graph)
 - [ ] **Phase 6 - SSH brute-force / low-and-slow spray detection** (signal 5)
 - [ ] **Phase 7 - Fusion risk score** combining all five signals per identity/session
