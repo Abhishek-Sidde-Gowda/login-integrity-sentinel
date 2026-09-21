@@ -75,7 +75,18 @@ detection phases below exist to feed it.
       `ingestion/splunk_client.py` (HEC ingestion + REST search) is
       **live-verified** against a real Dockerized Splunk Enterprise
       instance - see `docs/splunk-docker.md`.
-- [ ] **Phase 2 - Cross-account timing correlation engine** (signal 1)
+- [x] **Phase 2 - Cross-account timing correlation engine** (signal 1).
+      `detection/timing_correlation.py` - O(n) two-pointer sliding
+      window finds bursts of anomalous distinct-user counts, scores
+      against a cold baseline (windows outside every detected burst),
+      flags recurring bursts (Jaccard >= 0.5 user-set overlap) as
+      higher risk. **Bug found and fixed**: an initial leave-one-out
+      baseline only excluded each burst's own windows, so a second
+      recurring burst stayed in the first burst's baseline and damped
+      its z-score (1.88 instead of >200) - fixed with one shared cold
+      baseline excluding every detected burst, not per-burst
+      leave-one-out. 12/12 tests passing; detected all 6 injected farm
+      bursts in the full mixed dataset with zero false positives.
 - [ ] **Phase 3 - Physical-logical fusion** (signal 2)
 - [ ] **Phase 4 - Evasion-aware concurrency detector** (signal 3)
 - [ ] **Phase 5 - Session-token fork detection** (signal 4, networkx lineage graph)
@@ -99,7 +110,7 @@ tests/
 docs/
 ```
 
-## Running Phase 1 so far
+## Running what's built so far
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
