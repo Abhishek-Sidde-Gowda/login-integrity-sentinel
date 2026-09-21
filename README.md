@@ -57,8 +57,9 @@ than a manual splunk.com download. See `docs/splunk-docker.md` for the
 container setup and `ingestion/splunk_client.py` / `.env.example` for
 connection config. HEC ingestion -> Splunk indexing -> REST search
 readback was confirmed working end to end against this instance on
-2026-09-21. Phase 8 does the same live-verification pass once the
-detection phases below exist to feed it.
+2026-09-21. Phase 9 does the full live-verification pass, including
+real Splunk saved searches, once all five detection signals existed
+to feed it.
 
 ## Status
 
@@ -178,15 +179,23 @@ detection phases below exist to feed it.
       by Splunk's dispatcher, silently matching zero events with no
       error - caught by comparing the dispatched job's actual recorded
       query against what was intended, not by any error message.
-- [ ] **Phase 10 - README/DEMO finalization**
+- [x] **Phase 10 - README/DEMO finalization.** This README brought up
+      to date end to end; [DEMO.md](DEMO.md) added with a practical,
+      cheapest-first walkthrough - every command in it was actually run
+      against this build before being written down, not just described.
+
+**All 10 phases complete.** 42/42 tests passing across the whole
+pipeline; five independent detection signals, fused into one risk
+score, verified against both synthetic data and a real Splunk
+instance.
 
 ## Layout
 
 ```
-ingestion/    event schemas, SQLite store, Splunk HEC/REST client
+ingestion/    event schemas, SQLite store, Splunk HEC/REST client, network topology
 detection/    per-signal detection logic (phases 2-6)
 fusion/       combined risk scoring (phase 7)
-cli/          command-line entry point
+cli.py        command-line entry point (load-scenarios, score, push-splunk, serve)
 web/          Flask dashboard
 scenarios/    synthetic normal population + attack-pattern generators
 splunk/       saved SPL searches, mirrored into the real Splunk instance (see docs/splunk-searches.md)
@@ -194,11 +203,15 @@ tests/
 docs/
 ```
 
-## Running what's built so far
+## Running it
+
+See [DEMO.md](DEMO.md) for a full walkthrough. Quick start:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
-python -m scenarios.run_scenarios   # builds + loads the synthetic dataset
+python cli.py load-scenarios   # builds + loads the synthetic dataset
+python cli.py score            # fused risk board in the terminal
+python cli.py serve            # dashboard at http://localhost:5220
 ```
