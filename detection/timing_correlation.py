@@ -21,6 +21,8 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass, field
 
+from detection._util import as_dict
+
 WINDOW_SECONDS = 3.0
 MIN_BURST_SIZE = 4
 RECURRENCE_JACCARD_THRESHOLD = 0.5
@@ -73,16 +75,7 @@ def _windowed_distinct_counts(sorted_events: list, window_seconds: float) -> lis
     return results
 
 
-def _as_dict(e) -> dict:
-    """Normalize a sqlite3.Row (dict-subscriptable) or an AuthEvent
-    dataclass (attribute-only) to a plain dict, so detection logic
-    doesn't care which one it's given."""
-    if isinstance(e, dict):
-        return e
-    try:
-        return {"timestamp": e["timestamp"], "user_id": e["user_id"], "event_id": e["event_id"]}
-    except (TypeError, IndexError, KeyError):
-        return {"timestamp": e.timestamp, "user_id": e.user_id, "event_id": e.event_id}
+_AUTH_FIELDS = ("timestamp", "user_id", "event_id")
 
 
 def detect_bursts(
@@ -90,7 +83,7 @@ def detect_bursts(
     window_seconds: float = WINDOW_SECONDS,
     min_burst_size: int = MIN_BURST_SIZE,
 ) -> list[CrossAccountBurst]:
-    events = sorted((_as_dict(e) for e in auth_events), key=lambda e: e["timestamp"])
+    events = sorted((as_dict(e, _AUTH_FIELDS) for e in auth_events), key=lambda e: e["timestamp"])
     if len(events) < min_burst_size:
         return []
 

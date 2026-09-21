@@ -10,19 +10,11 @@ import time
 import uuid
 from dataclasses import replace
 
+from ingestion.network_topology import BUILDING_NETWORK_SEGMENTS as BUILDINGS
 from ingestion.schema import AuthEvent, BadgeEvent, NetworkFingerprint, SSHAuthEvent, TokenEvent
 
 SSH_HOSTS = ["bastion-01", "app-db-03", "web-edge-07"]
 COMMON_USERNAMES = ["root", "admin", "ubuntu", "deploy", "postgres", "svc-backup", "jenkins"]
-
-# Building <-> network segment mapping used by the physical-logical fusion
-# signal: a login whose src_ip falls in a segment that doesn't match the
-# user's most recent badge-read building is a mismatch worth scoring.
-BUILDINGS = {
-    "HQ-North": "10.10.1.",
-    "HQ-South": "10.10.2.",
-    "Remote-VPN": "10.50.0.",
-}
 
 UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
