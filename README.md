@@ -1,5 +1,7 @@
 # Login Integrity Sentinel
 
+[![GitHub](https://img.shields.io/badge/GitHub-login--integrity--sentinel-181717?logo=github)](https://github.com/Abhishek-Sidde-Gowda/login-integrity-sentinel)
+
 Detects attacker-controlled "multiple logging in" activity - credential
 farms, session/token theft, and physical-logical identity spoofing -
 by fusing five signals almost nothing combines into one score, instead
