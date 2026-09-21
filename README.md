@@ -122,7 +122,18 @@ detection phases below exist to feed it.
       divergence in who's using it. 28/28 tests passing; detected
       exactly the 5 injected forks in the full mixed dataset with zero
       false positives.
-- [ ] **Phase 6 - SSH brute-force / low-and-slow spray detection** (signal 5)
+- [x] **Phase 6 - SSH brute-force / low-and-slow spray detection**
+      (signal 5). `detection/ssh_bruteforce.py` - two detectors:
+      `detect_brute_force()` (per-(host, src_ip) failure count over a
+      sliding window) and `detect_password_spray()` (population-level
+      fan-out of distinct source IPs against one host, each
+      individually under the brute-force threshold - the pattern no
+      per-entity rule can see by construction). A source already
+      caught by the brute-force threshold is excluded from spray
+      scoring so a loud single-source attack isn't double-counted.
+      32/32 tests passing; detected exactly the injected 39-attempt
+      brute force and 15-source spray in the full mixed dataset, each
+      attributed to only its own detector, zero false positives.
 - [ ] **Phase 7 - Fusion risk score** combining all five signals per identity/session
 - [ ] **Phase 8 - CLI + Flask dashboard** (matches rest of portfolio)
 - [ ] **Phase 9 - Live verification** against the real Splunk instance
