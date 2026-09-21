@@ -28,6 +28,12 @@ from ingestion.network_topology import building_for_ip
 # would "explain away" every subsequent login from anywhere.
 MISMATCH_WINDOW_SECONDS = 4 * 3600
 
+# The disagreement itself is binary evidence - a badge in one building
+# and a login from another isn't "more true" the sooner it happens
+# (unlike the other signals' continuous anomaly scores), so this is a
+# fixed weight rather than a formula over gap_seconds.
+MISMATCH_RISK_WEIGHT = 20.0
+
 _AUTH_FIELDS = ("timestamp", "user_id", "event_id", "src_ip")
 _BADGE_FIELDS = ("timestamp", "user_id", "event_id", "building")
 
@@ -45,6 +51,10 @@ class PhysicalLogicalMismatch:
     @property
     def gap_seconds(self) -> float:
         return self.login_ts - self.badge_ts
+
+    @property
+    def risk_score(self) -> float:
+        return MISMATCH_RISK_WEIGHT
 
 
 def detect_mismatches(
