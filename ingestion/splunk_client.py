@@ -10,12 +10,24 @@ from __future__ import annotations
 
 import os
 import time
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 from typing import Any, Iterable
 
 import requests
 
 from ingestion.schema import AuthEvent, BadgeEvent, NetworkFingerprint, SSHAuthEvent, TokenEvent
+
+
+def _to_dict(e) -> dict[str, Any]:
+    """Accept either an ingestion/schema.py dataclass or a sqlite3.Row
+    from ingestion/store.py - the CLI's push-splunk command reads rows
+    straight out of the store, not the original dataclasses, and
+    dataclasses.asdict() alone would raise on a Row."""
+    if is_dataclass(e):
+        return asdict(e)
+    if hasattr(e, "keys"):  # sqlite3.Row
+        return {k: e[k] for k in e.keys()}
+    return dict(e)
 
 
 class SplunkConfigError(RuntimeError):
@@ -68,19 +80,19 @@ class SplunkClient:
         })
 
     def send_auth_events(self, events: Iterable[AuthEvent]) -> None:
-        self._send_hec("login_integrity_auth", "auth_event", (asdict(e) for e in events))
+        self._send_hec("login_integrity_auth", "auth_event", (_to_dict(e) for e in events))
 
     def send_badge_events(self, events: Iterable[BadgeEvent]) -> None:
-        self._send_hec("login_integrity_badge", "badge_event", (asdict(e) for e in events))
+        self._send_hec("login_integrity_badge", "badge_event", (_to_dict(e) for e in events))
 
     def send_token_events(self, events: Iterable[TokenEvent]) -> None:
-        self._send_hec("login_integrity_token", "token_event", (asdict(e) for e in events))
+        self._send_hec("login_integrity_token", "token_event", (_to_dict(e) for e in events))
 
     def send_ssh_events(self, events: Iterable[SSHAuthEvent]) -> None:
-        self._send_hec("login_integrity_ssh", "ssh_auth_event", (asdict(e) for e in events))
+        self._send_hec("login_integrity_ssh", "ssh_auth_event", (_to_dict(e) for e in events))
 
     def send_network_fingerprints(self, fps: Iterable[NetworkFingerprint]) -> None:
-        self._send_hec("login_integrity_netfp", "network_fingerprint", (asdict(f) for f in fps))
+        self._send_hec("login_integrity_netfp", "network_fingerprint", (_to_dict(f) for f in fps))
 
     def run_search(self, spl: str) -> list[dict[str, Any]]:
         """Run a oneshot SPL search via the REST API and return result rows."""

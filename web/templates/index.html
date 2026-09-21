@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login Integrity Sentinel</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2035;
+    --surface3: #1f2740;
+    --border: #1e2d40;
+    --border-soft: #16202f;
+    --accent: #00d4ff;
+    --accent-dim: #0891b2;
+    --accent2: #7c3aed;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #38bdf8;
+    --success: #10b981;
+    --text: #e2e8f0;
+    --text-dim: #a8b6c7;
+    --muted: #64748b;
+    --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1100px 500px at 12% -8%, rgba(124,58,237,0.10), transparent 60%),
+      radial-gradient(900px 460px at 88% 0%, rgba(0,212,255,0.09), transparent 55%),
+      var(--bg);
+    color: var(--text); font-family: var(--font); font-size: 13px; min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(180deg, rgba(15,23,42,0.9) 0%, rgba(10,14,26,0.4) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px; display: flex; align-items: center; gap: 18px;
+    position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px);
+  }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(0,212,255,0.16), rgba(124,58,237,0.16));
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-weight: 700;
+  }
+  .logo { font-size: 19px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  .logo span { color: var(--accent2); }
+  .subtitle { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  header .controls { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  #last-refreshed { color: var(--muted); font-size: 10.5px; }
+  button {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 14px; font-family: var(--font); font-size: 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent-dim); }
+
+  main { padding: 24px 28px 60px; max-width: 1280px; margin: 0 auto; }
+
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .stat-card .value { font-size: 26px; font-weight: 700; }
+  .stat-card .label { color: var(--muted); font-size: 11px; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card.danger .value { color: var(--danger); }
+  .stat-card.warning .value { color: var(--warning); }
+  .stat-card.info .value { color: var(--info); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .panel + .panel { margin-top: 20px; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border-soft); font-weight: 700; color: var(--text-dim); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 11px 18px; font-size: 12.5px; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-soft); }
+  tbody tr { border-bottom: 1px solid var(--border-soft); cursor: pointer; transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr.selected { background: var(--surface3); }
+
+  .score { font-weight: 700; }
+  .score.hot { color: var(--danger); }
+  .score.warm { color: var(--warning); }
+  .score.cool { color: var(--info); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px;
+    background: var(--surface3); border: 1px solid var(--border); color: var(--text-dim);
+    margin: 2px 3px 2px 0;
+  }
+  .badge.agree { border-color: var(--accent-dim); color: var(--accent); }
+
+  .empty { padding: 30px 18px; color: var(--muted); text-align: center; }
+
+  #detail { display: none; }
+  #detail .panel-header { display: flex; justify-content: space-between; align-items: center; }
+  #detail .close-btn { cursor: pointer; color: var(--muted); font-size: 16px; }
+  .evidence-group { padding: 14px 18px; border-bottom: 1px solid var(--border-soft); }
+  .evidence-group:last-child { border-bottom: none; }
+  .evidence-group h4 { color: var(--accent); font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .evidence-item {
+    background: var(--surface2); border: 1px solid var(--border-soft); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 6px; font-size: 12px; color: var(--text-dim);
+  }
+  .evidence-item .k { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-icon">LI</div>
+  <div>
+    <div class="logo">Login Integrity <span>Sentinel</span></div>
+    <div class="subtitle">Five fused signals for attacker "multiple logging in" - not another impossible-travel rule</div>
+  </div>
+  <div class="controls">
+    <span id="last-refreshed"></span>
+    <button onclick="refreshAll()">Refresh</button>
+  </div>
+</header>
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="panel">
+    <div class="panel-header">Identity risk board</div>
+    <table>
+      <thead><tr><th>Identity</th><th>Total score</th><th>Signals</th></tr></thead>
+      <tbody id="identity-rows"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">Host risk board (SSH)</div>
+    <table>
+      <thead><tr><th>Host</th><th>Total score</th><th>Signals</th></tr></thead>
+      <tbody id="host-rows"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="detail">
+    <div class="panel-header">
+      <span id="detail-title"></span>
+      <span class="close-btn" onclick="closeDetail()">&times;</span>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</main>
+
+<script>
+const SIGNAL_LABELS = {
+  cross_account_timing: "Cross-account timing",
+  physical_logical: "Physical-logical",
+  evasion_fingerprint: "Evasion fingerprint",
+  token_fork: "Token fork",
+  ssh_brute_force: "SSH brute force",
+  ssh_password_spray: "SSH password spray",
+};
+
+function scoreClass(score) {
+  if (score === null) return "";
+  if (score >= 100) return "hot";
+  if (score >= 30) return "warm";
+  return "cool";
+}
+
+function renderStats(summary, identityTotal, hostTotal) {
+  const cards = [
+    { label: "Auth events", value: summary.auth_events, cls: "" },
+    { label: "SSH events", value: summary.ssh_events, cls: "" },
+    { label: "Token events", value: summary.token_events, cls: "" },
+    { label: "Identities at risk", value: identityTotal, cls: identityTotal > 0 ? "danger" : "" },
+    { label: "Hosts at risk", value: hostTotal, cls: hostTotal > 0 ? "warning" : "" },
+  ];
+  document.getElementById("stats").innerHTML = cards.map(c => `
+    <div class="stat-card ${c.cls}">
+      <div class="value">${c.value}</div>
+      <div class="label">${c.label}</div>
+    </div>`).join("");
+}
+
+function renderRows(tbodyId, rows, idField, onClick) {
+  const tbody = document.getElementById(tbodyId);
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">Nothing flagged. Run <code>python cli.py load-scenarios</code> to load the synthetic dataset.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const id = r[idField];
+    const badges = Object.keys(r.signal_scores).map(s =>
+      `<span class="badge ${r.num_signals_tripped > 1 ? 'agree' : ''}">${SIGNAL_LABELS[s] || s}</span>`
+    ).join("");
+    return `<tr data-id="${id}">
+      <td>${id}</td>
+      <td class="score ${scoreClass(r.total_score)}">${r.total_score ?? "n/a"}</td>
+      <td>${badges}</td>
+    </tr>`;
+  }).join("");
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.addEventListener("click", () => onClick(tr.dataset.id));
+  });
+}
+
+function renderEvidenceValue(item) {
+  return Object.entries(item)
+    .filter(([k]) => k !== "signal")
+    .map(([k, v]) => `<span class="k">${k}:</span> ${JSON.stringify(v)}`)
+    .join(" &middot; ");
+}
+
+async function showDetail(kind, id) {
+  const res = await fetch(`/api/${kind}/${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (data.error) return;
+
+  document.getElementById("detail-title").textContent = `${id} - total score ${data.total_score} (${data.num_signals_tripped} signal${data.num_signals_tripped === 1 ? "" : "s"})`;
+  const body = Object.entries(data.evidence).map(([signal, items]) => `
+    <div class="evidence-group">
+      <h4>${SIGNAL_LABELS[signal] || signal}</h4>
+      ${items.map(item => `<div class="evidence-item">${renderEvidenceValue(item)}</div>`).join("")}
+    </div>
+  `).join("");
+  document.getElementById("detail-body").innerHTML = body;
+  document.getElementById("detail").style.display = "block";
+  document.getElementById("detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeDetail() {
+  document.getElementById("detail").style.display = "none";
+}
+
+async function refreshAll() {
+  const [summary, identityData, hostData] = await Promise.all([
+    fetch("/api/summary").then(r => r.json()),
+    fetch("/api/identity-risk").then(r => r.json()),
+    fetch("/api/host-risk").then(r => r.json()),
+  ]);
+
+  renderStats(summary, identityData.total, hostData.total);
+  renderRows("identity-rows", identityData.identities, "identity_id", id => showDetail("identity", id));
+  renderRows("host-rows", hostData.hosts, "host_id", id => showDetail("host", id));
+  document.getElementById("last-refreshed").textContent = "updated " + new Date().toLocaleTimeString();
+}
+
+refreshAll();
+</script>
+</body>
+</html>
