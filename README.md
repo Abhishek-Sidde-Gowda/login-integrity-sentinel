@@ -189,6 +189,17 @@ pipeline; five independent detection signals, fused into one risk
 score, verified against both synthetic data and a real Splunk
 instance.
 
+**Post-Phase-10 addition:** a dedicated `/ssh-detection` dashboard view
+(`web/ssh_dashboard.py`, `web/templates/ssh_detection.html`) - failed-
+attempts timeline with an alert-threshold line, two peak-rate gauges,
+an attacker-origin map, a top-attacking-IPs table, and a failed-
+attempts-by-origin bar chart, all real data from the store. Uses a new
+`ingestion/geo_lookup.py` - a small, explicitly-labeled illustrative
+IP-to-geolocation table (not a real GeoIP integration) covering the
+synthetic IP ranges the scenario generator already uses, real-world
+reference points where one genuinely exists (185.220.100-110.x is a
+well-known Tor exit-relay range). 47/47 tests passing.
+
 ## Layout
 
 ```
