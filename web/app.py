@@ -7,6 +7,8 @@ actually in the store.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from flask import Flask, jsonify, render_template
 
 from fusion.risk_score import compute_host_risk, compute_identity_risk
@@ -16,6 +18,8 @@ from web.ssh_dashboard import build_gauges, build_geo_summary, build_timeline, b
 
 app = Flask(__name__)
 
+WORLD_LAND_PATH_FILE = Path(__file__).resolve().parent / "static" / "world_land_path.txt"
+
 
 @app.route("/")
 def index():
@@ -24,7 +28,8 @@ def index():
 
 @app.route("/ssh-detection")
 def ssh_detection():
-    return render_template("ssh_detection.html")
+    world_land_path = WORLD_LAND_PATH_FILE.read_text()
+    return render_template("ssh_detection.html", world_land_path=world_land_path)
 
 
 @app.route("/api/ssh-timeline")

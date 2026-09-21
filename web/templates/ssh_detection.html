@@ -83,37 +83,14 @@
   tbody tr:last-child { border-bottom: none; }
   td.count { color: var(--danger); font-weight: 700; }
 
-  .map-panel { position: relative; height: 320px; background:
-    linear-gradient(var(--border-soft) 1px, transparent 1px) 0 0/100% 12.5%,
-    linear-gradient(90deg, var(--border-soft) 1px, transparent 1px) 0 0/8.333% 100%,
-    var(--surface2);
-    overflow: hidden;
-  }
-  .land-dot {
-    position: absolute; width: 3px; height: 3px; border-radius: 50%;
-    background: rgba(148,163,184,0.35); transform: translate(-50%, -50%);
-  }
-  .map-target {
-    position: absolute; width: 10px; height: 10px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 0 4px rgba(0,212,255,0.15);
-    transform: translate(-50%, -50%); z-index: 2;
-  }
+  .map-panel { position: relative; height: 320px; background: var(--surface2); overflow: hidden; }
+  .map-panel svg { display: block; width: 100%; height: 100%; }
+  .land { fill: #2a3550; stroke: #1e2d40; stroke-width: 0.6; }
+  .map-caption { position: absolute; bottom: 8px; left: 12px; color: var(--muted); font-size: 10px; z-index: 2; }
   .map-label {
-    position: absolute; transform: translate(8px, -6px); white-space: nowrap;
-    font-size: 10px; color: var(--text-dim); background: rgba(10,14,26,0.7);
-    padding: 1px 5px; border-radius: 4px; z-index: 2; pointer-events: none;
+    font-size: 9px; fill: var(--text-dim); paint-order: stroke; stroke: rgba(10,14,26,0.85);
+    stroke-width: 3px; stroke-linejoin: round;
   }
-  .map-dot {
-    position: absolute; border-radius: 50%; background: var(--danger);
-    transform: translate(-50%, -50%); cursor: default;
-  }
-  .map-dot::after {
-    content: ""; position: absolute; inset: -6px; border-radius: 50%;
-    border: 1px solid rgba(239,68,68,0.5); animation: pulse 2s infinite;
-  }
-  @keyframes pulse { 0% { transform: scale(0.6); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
-  .map-arc { position: absolute; inset: 0; pointer-events: none; }
-  .map-caption { position: absolute; bottom: 8px; left: 12px; color: var(--muted); font-size: 10px; }
 
   .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 16px; }
   .bar-row .name { width: 130px; flex-shrink: 0; color: var(--text-dim); font-size: 11.5px; }
@@ -171,8 +148,12 @@
     <div class="mid-left">
       <div class="panel">
         <div class="panel-header">Attacker origins (illustrative geo lookup - see docs/splunk-searches.md)</div>
-        <div class="map-panel" id="map-panel">
-          <div class="map-caption">Target: internal SSH hosts</div>
+        <div class="map-panel">
+          <svg viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet">
+            <path class="land" d="{{ world_land_path }}" />
+            <g id="map-markers"></g>
+          </svg>
+          <div class="map-caption">Real country outlines (Natural Earth, public domain) - target: internal SSH hosts</div>
         </div>
       </div>
       <div class="panel">
@@ -274,76 +255,48 @@ function renderGeoBars(countries) {
   `).join("");
 }
 
-// Simplified world landmass mask: 36 columns x 14 rows, 10-degree cells,
-// covering lon -180..180 and lat 90..-50 (nothing in this dataset falls
-// further south, so the crop keeps the panel from being mostly empty
-// ocean). This is a coarse, hand-built abstraction for visual context,
-// not a precise coastline dataset - it exists so attacker dots land on
-// a recognizable world shape instead of a blank grid.
-const WORLD_GRID = [
-  ".............#......................",
-  "..########..####......#########.....",
-  ".################.################..",
-  ".....########...##################..",
-  "....#########...##################..",
-  ".....######......#################..",
-  ".....#####......#################...",
-  "......####.....####################.",
-  "........####...##########.##.#####..",
-  ".........######.#########.....#####.",
-  "..........######.##########....#####",
-  "..........######.##########.########",
-  "..........#####..####.......#######.",
-  "..........####....................##",
-];
-const GRID_COLS = 36, GRID_ROWS = WORLD_GRID.length;
-const LAT_TOP = 90, LAT_SPAN = 140; // 90 down to -50
+// Same linear equirectangular formula scripts/build_world_land_path.py
+// used to generate the embedded land path, in the same 1000x500 viewBox
+// - that shared formula is what guarantees markers land in the right
+// place on the landmass instead of floating over an unrelated ocean.
+const MAP_W = 1000, MAP_H = 500;
 
 function project(lat, lon) {
-  return { x: (lon + 180) / 360 * 100, y: (LAT_TOP - lat) / LAT_SPAN * 100 };
+  return { x: (lon + 180) / 360 * MAP_W, y: (90 - lat) / 180 * MAP_H };
 }
 
 function renderMap(countries) {
-  const panel = document.getElementById("map-panel");
+  const markers = document.getElementById("map-markers");
   const geoPoints = countries.filter(c => c.lat !== null && c.lon !== null);
-
-  let landDots = "";
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (WORLD_GRID[r][c] !== "#") continue;
-      const x = (c + 0.5) / GRID_COLS * 100;
-      const y = (r + 0.5) / GRID_ROWS * 100;
-      landDots += `<div class="land-dot" style="left:${x}%;top:${y}%"></div>`;
-    }
-  }
 
   // "Internal SSH hosts" plotted at a real reference point (continental
   // US) rather than an arbitrary screen position, using the same
-  // projection as every attacker dot.
+  // projection as every attacker marker.
   const target = project(39, -98);
-  let html = landDots +
-    `<div class="map-target" style="left:${target.x}%;top:${target.y}%"></div>` +
-    `<div class="map-caption">Simplified world projection (illustrative) - target: internal SSH hosts</div>`;
+  let svg = `<circle cx="${target.x}" cy="${target.y}" r="5" fill="#00d4ff">
+    <title>Target: internal SSH hosts</title></circle>`;
 
   if (geoPoints.length === 0) {
-    panel.innerHTML = html + `<div class="empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">No geolocatable attack origins</div>`;
+    markers.innerHTML = svg;
     return;
   }
 
   const maxCount = Math.max(...geoPoints.map(c => c.failed_count));
-  let svgArcs = "";
-  let labels = "";
   geoPoints.forEach((c, i) => {
     const p = project(c.lat, c.lon);
-    const size = 8 + (c.failed_count / maxCount) * 14;
-    html += `<div class="map-dot" title="${c.country}: ${c.failed_count} failed attempts"
-                style="left:${p.x}%; top:${p.y}%; width:${size}px; height:${size}px;"></div>`;
-    const labelOffsetY = 10 + (i % 2) * 16; // stagger so close-together dots don't overlap
-    labels += `<div class="map-label" style="left:${p.x}%; top:${p.y}%; transform: translate(8px, ${labelOffsetY}px);">${c.country} (${c.failed_count})</div>`;
-    svgArcs += `<line x1="${p.x}%" y1="${p.y}%" x2="${target.x}%" y2="${target.y}%" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.35" />`;
+    const r = 4 + (c.failed_count / maxCount) * 7;
+    svg += `<line x1="${p.x}" y1="${p.y}" x2="${target.x}" y2="${target.y}"
+              stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.35" />`;
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="${r * 2.2}" fill="none" stroke="#ef4444" stroke-width="1" opacity="0.5">
+              <animate attributeName="r" values="${r};${r * 2.6}" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.6;0" dur="2s" repeatCount="indefinite" />
+            </circle>`;
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#ef4444">
+              <title>${c.country}: ${c.failed_count} failed attempts</title></circle>`;
+    const labelDy = 14 + (i % 2) * 12; // stagger so close-together origins don't overlap
+    svg += `<text class="map-label" x="${p.x + 8}" y="${p.y + labelDy}">${c.country} (${c.failed_count})</text>`;
   });
-  html += `<svg class="map-arc" width="100%" height="100%">${svgArcs}</svg>` + labels;
-  panel.innerHTML = html;
+  markers.innerHTML = svg;
 }
 
 async function loadAll() {
