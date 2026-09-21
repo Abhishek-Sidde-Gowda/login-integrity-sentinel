@@ -134,7 +134,20 @@ detection phases below exist to feed it.
       32/32 tests passing; detected exactly the injected 39-attempt
       brute force and 15-source spray in the full mixed dataset, each
       attributed to only its own detector, zero false positives.
-- [ ] **Phase 7 - Fusion risk score** combining all five signals per identity/session
+- [x] **Phase 7 - Fusion risk score**. `fusion/risk_score.py` combines
+      the four identity-keyed signals into one `IdentityRiskScore` per
+      `user_id`, and the SSH signals into a separate `HostRiskScore`
+      per `target_host` - kept separate deliberately, since SSH
+      usernames here (root, admin, deploy) are shared infrastructure
+      accounts, not durable per-person identities the way `user_id`
+      is; joining them would be a fabricated correlation. Tripping
+      multiple signals scores multiplicatively higher than the sum of
+      its parts (1.5x per extra signal), mirroring iam-drift-
+      sentinel's drift+behavior fusion. Every signal contribution is
+      clamped to a finite cap before summing, since
+      `timing_correlation`'s z-score can legitimately be +inf.
+      39/39 tests passing; full mixed-dataset run produces 40 scored
+      identities and 2 scored hosts, correctly sorted.
 - [ ] **Phase 8 - CLI + Flask dashboard** (matches rest of portfolio)
 - [ ] **Phase 9 - Live verification** against the real Splunk instance
 - [ ] **Phase 10 - README/DEMO finalization**
