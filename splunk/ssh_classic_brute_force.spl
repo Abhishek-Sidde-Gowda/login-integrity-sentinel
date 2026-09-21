@@ -1,0 +1,8 @@
+``` Classic SSH brute force: one source IP failing many attempts against
+    one host in a tight window. Mirrors detection/ssh_bruteforce.py::detect_brute_force().
+    Saved in the live instance as "Login Integrity - SSH Classic Brute Force". ```
+index=login_integrity_ssh success=0
+| bucket _time span=5m
+| stats count as attempt_count by src_ip target_host _time
+| where attempt_count>=10
+| sort -attempt_count

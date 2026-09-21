@@ -162,7 +162,22 @@ detection phases below exist to feed it.
       return 200, both risk boards render with correct scores/badges,
       clicking a row opens the right evidence detail, no console
       errors. 42/42 tests passing.
-- [ ] **Phase 9 - Live verification** against the real Splunk instance
+- [x] **Phase 9 - Live verification** against the real Splunk instance.
+      Pushed the full synthetic dataset to Splunk over HEC via `cli.py
+      push-splunk`, confirmed indexed counts matched. Three of the five
+      signals (SSH brute force, SSH password spray, cross-account
+      timing) map cleanly onto single-index SPL and are saved as real
+      Splunk searches (see `splunk/*.spl`, `docs/splunk-searches.md`) -
+      dispatched as actual saved-search jobs (not ad-hoc queries) and
+      confirmed they return the same findings as the Python detectors.
+      The other two signals (physical-logical fusion, token forks) stay
+      in the Python fusion engine, since they're joins/lineage graphs
+      that Python expresses more directly than SPL's join/transaction
+      commands. **Bug found and fixed**: a saved search whose `search`
+      field itself starts with the word "search" gets double-prepended
+      by Splunk's dispatcher, silently matching zero events with no
+      error - caught by comparing the dispatched job's actual recorded
+      query against what was intended, not by any error message.
 - [ ] **Phase 10 - README/DEMO finalization**
 
 ## Layout
@@ -174,7 +189,7 @@ fusion/       combined risk scoring (phase 7)
 cli/          command-line entry point
 web/          Flask dashboard
 scenarios/    synthetic normal population + attack-pattern generators
-splunk/       saved searches / dashboard XML for the real Splunk instance
+splunk/       saved SPL searches, mirrored into the real Splunk instance (see docs/splunk-searches.md)
 tests/
 docs/
 ```
