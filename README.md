@@ -110,7 +110,18 @@ detection phases below exist to feed it.
       (max ratio 3.0). 23/23 tests passing; detected exactly the 5
       injected proxy cases in the full mixed dataset with zero false
       positives.
-- [ ] **Phase 5 - Session-token fork detection** (signal 4, networkx lineage graph)
+- [x] **Phase 5 - Session-token fork detection** (signal 4).
+      `detection/token_fork.py` - builds a networkx DiGraph of token
+      issuance lineage (`parent_token_id -> token_id`) and flags a
+      refresh token whose children were issued from two or more
+      divergent `(device, ip)` pairs within a 60-second window - the
+      signature of a stolen refresh token replayed by an attacker
+      alongside the legitimate user. Out-degree alone isn't the
+      signal - a client legitimately minting several access tokens off
+      one refresh token from the same device is not flagged, only
+      divergence in who's using it. 28/28 tests passing; detected
+      exactly the 5 injected forks in the full mixed dataset with zero
+      false positives.
 - [ ] **Phase 6 - SSH brute-force / low-and-slow spray detection** (signal 5)
 - [ ] **Phase 7 - Fusion risk score** combining all five signals per identity/session
 - [ ] **Phase 8 - CLI + Flask dashboard** (matches rest of portfolio)
