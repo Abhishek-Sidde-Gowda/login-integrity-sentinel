@@ -89,10 +89,19 @@
     var(--surface2);
     overflow: hidden;
   }
+  .land-dot {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: rgba(148,163,184,0.35); transform: translate(-50%, -50%);
+  }
   .map-target {
     position: absolute; width: 10px; height: 10px; border-radius: 50%;
     background: var(--accent); box-shadow: 0 0 0 4px rgba(0,212,255,0.15);
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%); z-index: 2;
+  }
+  .map-label {
+    position: absolute; transform: translate(8px, -6px); white-space: nowrap;
+    font-size: 10px; color: var(--text-dim); background: rgba(10,14,26,0.7);
+    padding: 1px 5px; border-radius: 4px; z-index: 2; pointer-events: none;
   }
   .map-dot {
     position: absolute; border-radius: 50%; background: var(--danger);
@@ -265,11 +274,56 @@ function renderGeoBars(countries) {
   `).join("");
 }
 
+// Simplified world landmass mask: 36 columns x 14 rows, 10-degree cells,
+// covering lon -180..180 and lat 90..-50 (nothing in this dataset falls
+// further south, so the crop keeps the panel from being mostly empty
+// ocean). This is a coarse, hand-built abstraction for visual context,
+// not a precise coastline dataset - it exists so attacker dots land on
+// a recognizable world shape instead of a blank grid.
+const WORLD_GRID = [
+  ".............#......................",
+  "..########..####......#########.....",
+  ".################.################..",
+  ".....########...##################..",
+  "....#########...##################..",
+  ".....######......#################..",
+  ".....#####......#################...",
+  "......####.....####################.",
+  "........####...##########.##.#####..",
+  ".........######.#########.....#####.",
+  "..........######.##########....#####",
+  "..........######.##########.########",
+  "..........#####..####.......#######.",
+  "..........####....................##",
+];
+const GRID_COLS = 36, GRID_ROWS = WORLD_GRID.length;
+const LAT_TOP = 90, LAT_SPAN = 140; // 90 down to -50
+
+function project(lat, lon) {
+  return { x: (lon + 180) / 360 * 100, y: (LAT_TOP - lat) / LAT_SPAN * 100 };
+}
+
 function renderMap(countries) {
   const panel = document.getElementById("map-panel");
   const geoPoints = countries.filter(c => c.lat !== null && c.lon !== null);
-  const targetX = 82, targetY = 40;
-  let html = `<div class="map-target" style="left:${targetX}%;top:${targetY}%"></div><div class="map-caption">Target: internal SSH hosts</div>`;
+
+  let landDots = "";
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (WORLD_GRID[r][c] !== "#") continue;
+      const x = (c + 0.5) / GRID_COLS * 100;
+      const y = (r + 0.5) / GRID_ROWS * 100;
+      landDots += `<div class="land-dot" style="left:${x}%;top:${y}%"></div>`;
+    }
+  }
+
+  // "Internal SSH hosts" plotted at a real reference point (continental
+  // US) rather than an arbitrary screen position, using the same
+  // projection as every attacker dot.
+  const target = project(39, -98);
+  let html = landDots +
+    `<div class="map-target" style="left:${target.x}%;top:${target.y}%"></div>` +
+    `<div class="map-caption">Simplified world projection (illustrative) - target: internal SSH hosts</div>`;
 
   if (geoPoints.length === 0) {
     panel.innerHTML = html + `<div class="empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">No geolocatable attack origins</div>`;
@@ -278,15 +332,17 @@ function renderMap(countries) {
 
   const maxCount = Math.max(...geoPoints.map(c => c.failed_count));
   let svgArcs = "";
-  geoPoints.forEach(c => {
-    const px = (c.lon + 180) / 360 * 100;
-    const py = (90 - c.lat) / 180 * 100;
+  let labels = "";
+  geoPoints.forEach((c, i) => {
+    const p = project(c.lat, c.lon);
     const size = 8 + (c.failed_count / maxCount) * 14;
     html += `<div class="map-dot" title="${c.country}: ${c.failed_count} failed attempts"
-                style="left:${px}%; top:${py}%; width:${size}px; height:${size}px;"></div>`;
-    svgArcs += `<line x1="${px}%" y1="${py}%" x2="${targetX}%" y2="${targetY}%" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.35" />`;
+                style="left:${p.x}%; top:${p.y}%; width:${size}px; height:${size}px;"></div>`;
+    const labelOffsetY = 10 + (i % 2) * 16; // stagger so close-together dots don't overlap
+    labels += `<div class="map-label" style="left:${p.x}%; top:${p.y}%; transform: translate(8px, ${labelOffsetY}px);">${c.country} (${c.failed_count})</div>`;
+    svgArcs += `<line x1="${p.x}%" y1="${p.y}%" x2="${target.x}%" y2="${target.y}%" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.35" />`;
   });
-  html += `<svg class="map-arc" width="100%" height="100%">${svgArcs}</svg>`;
+  html += `<svg class="map-arc" width="100%" height="100%">${svgArcs}</svg>` + labels;
   panel.innerHTML = html;
 }
 
