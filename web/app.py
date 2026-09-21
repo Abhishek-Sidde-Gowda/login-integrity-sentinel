@@ -12,6 +12,7 @@ from flask import Flask, jsonify, render_template
 from fusion.risk_score import compute_host_risk, compute_identity_risk
 from ingestion.store import Store
 from web.serialize import serialize_risk
+from web.ssh_dashboard import build_gauges, build_geo_summary, build_timeline, build_top_attackers
 
 app = Flask(__name__)
 
@@ -19,6 +20,43 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/ssh-detection")
+def ssh_detection():
+    return render_template("ssh_detection.html")
+
+
+@app.route("/api/ssh-timeline")
+def api_ssh_timeline():
+    store = Store()
+    data = build_timeline(store.all_ssh_events())
+    store.close()
+    return jsonify(data)
+
+
+@app.route("/api/ssh-top-attackers")
+def api_ssh_top_attackers():
+    store = Store()
+    data = build_top_attackers(store.all_ssh_events())
+    store.close()
+    return jsonify({"attackers": data})
+
+
+@app.route("/api/ssh-geo-summary")
+def api_ssh_geo_summary():
+    store = Store()
+    data = build_geo_summary(store.all_ssh_events())
+    store.close()
+    return jsonify({"countries": data})
+
+
+@app.route("/api/ssh-gauges")
+def api_ssh_gauges():
+    store = Store()
+    data = build_gauges(store.all_ssh_events())
+    store.close()
+    return jsonify({"gauges": data})
 
 
 @app.route("/api/identity-risk")

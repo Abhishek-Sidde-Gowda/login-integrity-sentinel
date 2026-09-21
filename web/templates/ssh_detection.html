@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SSH Brute Force Detection - Login Integrity Sentinel</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2035;
+    --surface3: #1f2740;
+    --border: #1e2d40;
+    --border-soft: #16202f;
+    --accent: #00d4ff;
+    --accent-dim: #0891b2;
+    --accent2: #7c3aed;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #38bdf8;
+    --success: #10b981;
+    --text: #e2e8f0;
+    --text-dim: #a8b6c7;
+    --muted: #64748b;
+    --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1100px 500px at 12% -8%, rgba(124,58,237,0.10), transparent 60%),
+      radial-gradient(900px 460px at 88% 0%, rgba(0,212,255,0.09), transparent 55%),
+      var(--bg);
+    color: var(--text); font-family: var(--font); font-size: 13px; min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(180deg, rgba(15,23,42,0.9) 0%, rgba(10,14,26,0.4) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px; display: flex; align-items: center; gap: 18px;
+    position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px);
+  }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(239,68,68,0.16), rgba(124,58,237,0.16));
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+    color: var(--danger); font-weight: 700;
+  }
+  .logo { font-size: 19px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
+  .subtitle { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  header .back { margin-left: auto; }
+  a.back-link {
+    color: var(--text-dim); text-decoration: none; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px;
+  }
+  a.back-link:hover { border-color: var(--accent-dim); }
+
+  main { padding: 24px 28px 60px; max-width: 1320px; margin: 0 auto; }
+
+  .grid-top { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .gauge-stack { display: flex; flex-direction: column; gap: 16px; }
+  .grid-mid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .mid-left { display: flex; flex-direction: column; gap: 16px; }
+  .mid-right { display: flex; flex-direction: column; gap: 16px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .panel-header { padding: 13px 16px; border-bottom: 1px solid var(--border-soft); font-weight: 700; color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .panel-body { padding: 14px 16px; }
+
+  .gauge-card { text-align: center; }
+  .gauge-value { font-size: 30px; font-weight: 700; }
+  .gauge-value.danger { color: var(--danger); }
+  .gauge-value.warning { color: var(--warning); }
+  .gauge-value.ok { color: var(--success); }
+  .gauge-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .gauge-tag { display: inline-block; margin-top: 6px; font-size: 10px; padding: 2px 8px; border-radius: 999px; }
+  .gauge-tag.danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .gauge-tag.ok { background: rgba(16,185,129,0.15); color: var(--success); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 16px; font-size: 12px; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-soft); }
+  tbody tr { border-bottom: 1px solid var(--border-soft); }
+  tbody tr:last-child { border-bottom: none; }
+  td.count { color: var(--danger); font-weight: 700; }
+
+  .map-panel { position: relative; height: 320px; background:
+    linear-gradient(var(--border-soft) 1px, transparent 1px) 0 0/100% 12.5%,
+    linear-gradient(90deg, var(--border-soft) 1px, transparent 1px) 0 0/8.333% 100%,
+    var(--surface2);
+    overflow: hidden;
+  }
+  .map-target {
+    position: absolute; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 4px rgba(0,212,255,0.15);
+    transform: translate(-50%, -50%);
+  }
+  .map-dot {
+    position: absolute; border-radius: 50%; background: var(--danger);
+    transform: translate(-50%, -50%); cursor: default;
+  }
+  .map-dot::after {
+    content: ""; position: absolute; inset: -6px; border-radius: 50%;
+    border: 1px solid rgba(239,68,68,0.5); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0% { transform: scale(0.6); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+  .map-arc { position: absolute; inset: 0; pointer-events: none; }
+  .map-caption { position: absolute; bottom: 8px; left: 12px; color: var(--muted); font-size: 10px; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; padding: 7px 16px; }
+  .bar-row .name { width: 130px; flex-shrink: 0; color: var(--text-dim); font-size: 11.5px; }
+  .bar-track { flex: 1; height: 10px; background: var(--surface3); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--danger)); }
+  .bar-row .num { width: 34px; text-align: right; color: var(--text-dim); font-size: 11.5px; }
+
+  .searchbar {
+    display: flex; align-items: center; gap: 10px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-top: 16px;
+  }
+  .searchbar .icon { color: var(--muted); }
+  .searchbar code { color: var(--accent); font-size: 12px; flex: 1; overflow-x: auto; white-space: nowrap; }
+  .searchbar .note { color: var(--muted); font-size: 10.5px; }
+
+  .empty { padding: 24px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-icon">SSH</div>
+  <div>
+    <div class="logo">SSH Brute Force Detection</div>
+    <div class="subtitle">Login Integrity Sentinel - live from the local SQLite store</div>
+  </div>
+  <div class="back"><a class="back-link" href="/">&larr; Back to overview</a></div>
+</header>
+<main>
+  <div class="grid-top">
+    <div class="panel">
+      <div class="panel-header">Failed login attempts over time</div>
+      <div class="panel-body"><svg id="timeline-chart" viewBox="0 0 600 220" width="100%" height="220"></svg></div>
+    </div>
+    <div class="gauge-stack">
+      <div class="panel gauge-card" id="gauge-0">
+        <div class="panel-header">Peak attempts / IP / minute</div>
+        <div class="panel-body">
+          <div class="gauge-value" id="gauge-0-value">-</div>
+          <div class="gauge-label" id="gauge-0-ip">-</div>
+          <span class="gauge-tag" id="gauge-0-tag"></span>
+        </div>
+      </div>
+      <div class="panel gauge-card" id="gauge-1">
+        <div class="panel-header">2nd most active source</div>
+        <div class="panel-body">
+          <div class="gauge-value" id="gauge-1-value">-</div>
+          <div class="gauge-label" id="gauge-1-ip">-</div>
+          <span class="gauge-tag" id="gauge-1-tag"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-mid">
+    <div class="mid-left">
+      <div class="panel">
+        <div class="panel-header">Attacker origins (illustrative geo lookup - see docs/splunk-searches.md)</div>
+        <div class="map-panel" id="map-panel">
+          <div class="map-caption">Target: internal SSH hosts</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">Top attacking IPs</div>
+        <table>
+          <thead><tr><th>Source IP</th><th>Origin</th><th>Target host(s)</th><th>Failed attempts</th></tr></thead>
+          <tbody id="attacker-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mid-right">
+      <div class="panel">
+        <div class="panel-header">Failed attempts by origin</div>
+        <div class="panel-body" id="geo-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="searchbar">
+    <span class="icon">SPL</span>
+    <code id="spl-query">index=login_integrity_ssh success=0 | bucket _time span=5m | stats count as attempt_count by src_ip target_host _time | where attempt_count&gt;=10</code>
+    <span class="note">verified against a real Splunk instance - see docs/splunk-searches.md</span>
+  </div>
+</main>
+
+<script>
+async function fetchJSON(url) { return (await fetch(url)).json(); }
+
+function drawTimeline(timeline) {
+  const svg = document.getElementById("timeline-chart");
+  const buckets = timeline.buckets;
+  const W = 600, H = 220, PAD = 30;
+  if (buckets.length === 0) {
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" fill="#64748b" font-size="12" text-anchor="middle">No failed SSH attempts recorded</text>`;
+    return;
+  }
+  const maxCount = Math.max(...buckets.map(b => b.count), timeline.alert_threshold) * 1.15;
+  const x = i => PAD + (i / Math.max(buckets.length - 1, 1)) * (W - PAD * 1.5);
+  const y = c => H - PAD - (c / maxCount) * (H - PAD * 1.6);
+
+  const points = buckets.map((b, i) => `${x(i)},${y(b.count)}`).join(" ");
+  const thresholdY = y(timeline.alert_threshold);
+
+  svg.innerHTML = `
+    <line x1="${PAD}" y1="${thresholdY}" x2="${W - PAD/2}" y2="${thresholdY}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,4" />
+    <text x="${W - PAD/2}" y="${thresholdY - 6}" fill="#f59e0b" font-size="10" text-anchor="end">Alert threshold - ${timeline.alert_threshold} attempts</text>
+    <polyline points="${points}" fill="none" stroke="#ef4444" stroke-width="2" />
+    ${buckets.map((b,i) => `<circle cx="${x(i)}" cy="${y(b.count)}" r="2.5" fill="#ef4444" />`).join("")}
+    <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD/2}" y2="${H-PAD}" stroke="#1e2d40" />
+  `;
+}
+
+function gaugeTagClass(v) { return v >= 15 ? "danger" : "ok"; }
+function gaugeValueClass(v) { return v >= 15 ? "danger" : v >= 5 ? "warning" : "ok"; }
+
+function renderGauges(gauges) {
+  gauges.forEach((g, i) => {
+    const valueEl = document.getElementById(`gauge-${i}-value`);
+    const ipEl = document.getElementById(`gauge-${i}-ip`);
+    const tagEl = document.getElementById(`gauge-${i}-tag`);
+    if (!valueEl) return;
+    valueEl.textContent = g.attempts_per_minute;
+    valueEl.className = "gauge-value " + gaugeValueClass(g.attempts_per_minute);
+    ipEl.textContent = g.src_ip;
+    tagEl.textContent = g.attempts_per_minute >= 15 ? "Danger" : "Normal";
+    tagEl.className = "gauge-tag " + gaugeTagClass(g.attempts_per_minute);
+  });
+}
+
+function renderAttackers(attackers) {
+  const tbody = document.getElementById("attacker-rows");
+  if (attackers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">No failed SSH attempts recorded</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = attackers.map(a => `
+    <tr>
+      <td>${a.src_ip}</td>
+      <td>${a.country}</td>
+      <td>${a.target_hosts.join(", ")}</td>
+      <td class="count">${a.failed_count}</td>
+    </tr>
+  `).join("");
+}
+
+function renderGeoBars(countries) {
+  const el = document.getElementById("geo-bars");
+  if (countries.length === 0) {
+    el.innerHTML = `<div class="empty">No data</div>`;
+    return;
+  }
+  const max = Math.max(...countries.map(c => c.failed_count));
+  el.innerHTML = countries.map(c => `
+    <div class="bar-row">
+      <div class="name">${c.country}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c.failed_count / max * 100).toFixed(0)}%"></div></div>
+      <div class="num">${c.failed_count}</div>
+    </div>
+  `).join("");
+}
+
+function renderMap(countries) {
+  const panel = document.getElementById("map-panel");
+  const geoPoints = countries.filter(c => c.lat !== null && c.lon !== null);
+  const targetX = 82, targetY = 40;
+  let html = `<div class="map-target" style="left:${targetX}%;top:${targetY}%"></div><div class="map-caption">Target: internal SSH hosts</div>`;
+
+  if (geoPoints.length === 0) {
+    panel.innerHTML = html + `<div class="empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">No geolocatable attack origins</div>`;
+    return;
+  }
+
+  const maxCount = Math.max(...geoPoints.map(c => c.failed_count));
+  let svgArcs = "";
+  geoPoints.forEach(c => {
+    const px = (c.lon + 180) / 360 * 100;
+    const py = (90 - c.lat) / 180 * 100;
+    const size = 8 + (c.failed_count / maxCount) * 14;
+    html += `<div class="map-dot" title="${c.country}: ${c.failed_count} failed attempts"
+                style="left:${px}%; top:${py}%; width:${size}px; height:${size}px;"></div>`;
+    svgArcs += `<line x1="${px}%" y1="${py}%" x2="${targetX}%" y2="${targetY}%" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,3" opacity="0.35" />`;
+  });
+  html += `<svg class="map-arc" width="100%" height="100%">${svgArcs}</svg>`;
+  panel.innerHTML = html;
+}
+
+async function loadAll() {
+  const [timeline, attackersData, geoData, gaugesData] = await Promise.all([
+    fetchJSON("/api/ssh-timeline"),
+    fetchJSON("/api/ssh-top-attackers"),
+    fetchJSON("/api/ssh-geo-summary"),
+    fetchJSON("/api/ssh-gauges"),
+  ]);
+  drawTimeline(timeline);
+  renderGauges(gaugesData.gauges);
+  renderAttackers(attackersData.attackers);
+  renderGeoBars(geoData.countries);
+  renderMap(geoData.countries);
+}
+
+loadAll();
+</script>
+</body>
+</html>
