@@ -87,7 +87,18 @@ detection phases below exist to feed it.
       baseline excluding every detected burst, not per-burst
       leave-one-out. 12/12 tests passing; detected all 6 injected farm
       bursts in the full mixed dataset with zero false positives.
-- [ ] **Phase 3 - Physical-logical fusion** (signal 2)
+- [x] **Phase 3 - Physical-logical fusion** (signal 2).
+      `detection/physical_logical_fusion.py` - bisects each user's
+      sorted badge history to find the most recent read before a
+      login, flags a mismatch when that badge's building differs from
+      the login's network-segment building. Badge reads older than 4
+      hours make no claim about current location and are excluded, as
+      are logins from IPs outside any known building segment (no
+      physical claim to contradict). Building<->network-segment
+      mapping moved to `ingestion/network_topology.py` so the detector
+      and the synthetic generator share one definition. 18/18 tests
+      passing; detected exactly the 5 injected mismatches in the full
+      mixed dataset with zero false positives.
 - [ ] **Phase 4 - Evasion-aware concurrency detector** (signal 3)
 - [ ] **Phase 5 - Session-token fork detection** (signal 4, networkx lineage graph)
 - [ ] **Phase 6 - SSH brute-force / low-and-slow spray detection** (signal 5)
